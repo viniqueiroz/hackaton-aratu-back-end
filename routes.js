@@ -7,6 +7,7 @@ module.exports = function (app) {
   var TipoResposta = require('./models/tipoResposta');
   var Resposta = require('./models/resposta');
   var Programa = require('./models/programa');
+  var Produto = require('./models/produto');
   var auth = require('./auth');
   var config = require('./config/config');
   var jwt = require('jsonwebtoken');
@@ -14,13 +15,24 @@ module.exports = function (app) {
   var moment = require('moment');
   //Criptografia da senha
   var sha1 = require('sha1');
-  app.use(auth);
+  // app.use(auth);
 
   app.get('/api/usuario/:user_id', function (req, res) {
     Usuario.where({ id: req.params.user_id }).fetch().then(function (usuario) {
       res.json(usuario);
     }).catch(function (err) {
       console.log(JSON.stringify(err));
+      res.json({
+        status: false,
+        message: 'Nenhum Usuario encontrado'
+      });
+    });
+  });
+
+  app.get('/api/user/:user_id', function (req, res) {
+    Usuario.where({ id: req.params.user_id }).fetch().then(function (usuario) {
+      res.json(usuario);
+    }).catch(function (err) {
       res.json({
         status: false,
         message: 'Nenhum Usuario encontrado'
@@ -572,6 +584,119 @@ module.exports = function (app) {
 
   //  =================   PROGRAMA CRUD - FIM ===================
 
+  //  =================   PRODUTOS CRUD - INÍCIO ===================
+
+  app.get('/api/produtos', function (req, res) { /// Retorna do banco todos os status cadastrados
+    Produto.fetchAll().then(function (produtos) {
+      res.json(produtos);
+    }).catch(function (err) {
+      res.json(err);
+    });
+  });
+
+  app.get('/api/produtos/:produto_id', function (req, res) { /// Retorna do banco o status que vai ser editado na subtela de edição
+    Produto.where({ id: req.params.produto_id }).fetch().then(function (produto) {
+      res.json(produto);
+    }).catch(function (err) {
+      console.log(JSON.stringify(err));
+      res.json({
+        status: false,
+        message: 'Nenhum Produto encontrado'
+      });
+    });
+  });
+
+  app.put('/api/produtos/:produto_id', function (req, res) { /// Edita um status a partir de seus dados
+    Produto.where({ id: req.params.produto_id }).fetch().then((produto) => {
+      produto.save(req.body, { method: 'update', patch: true }).then(function (produto) {
+        res.json({
+          status: true,
+          message: 'Produto Atualizado'
+        });
+      }).catch(function (err) {
+        console.log(err);
+        res.json({
+          status: false,
+          message: 'Erro ao Atualizar Produto'
+        });
+      });
+    });
+
+  });
+
+  //  =================   PRODUTOS CRUD - FIM ===================
+
+  // ECOMMERCE
+  app.post('/api/comprar', function (req, res) {  /// Cadastra um novo status
+    let valorProduto = 0;
+    Produto.where({ id: req.body.id_produto }).fetch().then((produto) => {
+      produto.attributes.quantidade -= 1;
+      valorProduto = produto.attributes.valor;
+      produto.save();
+      // res.json({
+      //   status: true,
+      //   message: 'Quantid Compra realizada'
+      // });
+    }).catch(function (err) {
+      console.log(err);
+      res.json({
+        status: false,
+        message: 'Erro ao Comprar Produto '
+      });
+    });
+    Usuario.where({ id: req.body.id_usuario }).fetch().then(function (usuario) {
+      usuario.attributes.saldo -= valorProduto;
+      usuario.save();
+    }).catch(function (err) {
+      console.log(err);
+      res.json({
+        status: false,
+        message: 'Erro ao Debitar Cliente '
+      });
+    });
+    //CRIAR TRANSAÇÃO
+    res.json({
+      status: true,
+      message: 'Compra realizada'
+    });
+
+  });
+
+  app.post('/api/responder', function (req, res) {  /// Cadastra um novo status
+    var valorResposta = req.body.transac.valor;
+    resposta = {
+      usuario_id: req.body.transac.id_usuario,
+      id_opcao: req.body.transac.id_opcao,
+      id_tipo_resposta: req.body.transac.id_tipoResposta,
+      id_programa: req.body.transac.id_programa
+    };
+    new Resposta(resposta).save().then(function (resposta) {
+      console.log("Nova Resposta Cadastrada");
+    }).catch(function (err) {
+      console.log(err);
+      res.json({
+        status: false,
+        message: 'Erro ao Cadastrar Nova Resposta '
+      });
+    });
+    Usuario.where({ id: req.body.transac.id_usuario }).fetch().then(function (usuario) {
+      usuario.attributes.saldo += valorResposta;
+      usuario.save();
+    }).catch(function (err) {
+      console.log(err);
+      res.json({
+        status: false,
+        message: 'Erro ao Debitar Cliente '
+      });
+    });
+    //CRIAR TRANSAÇÃO
+    res.json({
+      status: true,
+      message: 'Valor Creditado com sucesso'
+    });
+
+  });
+  //
 
   app.post('/api/logout', function (req, res) {   /// Deleta um determinado grupo
 

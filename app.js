@@ -49,6 +49,6 @@ routes(app);
 //     console.log('Rodando porta' + process.env.PORT_APP);
 // });
 
-app.listen(process.env.PORT || 3000, function () {
+app.listen(process.env.PORT, "10.0.0.185", function () {
   console.log("Servidor rodando na porta %d em modo %s", this.address().port, app.settings.env);
 });
